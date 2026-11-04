@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>上班鼓励器</title>
+<script src="js/neutralino.js"></script>
+<style>
+  :root {
+    --bg: #f3f4f6;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --sub: #8a8f98;
+    --amber: #f99d33;
+    --red: #a82820;
+    --blue: #2e70e8;
+    --teal: #229a8e;
+    --btn-text: #ffffff;
+    --line: #e5e7eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --card: #232427;
+      --text: #ececec;
+      --sub: #9a9ea6;
+      --red: #fb6d59;
+      --line: #35373b;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    user-select: none; overflow: hidden;
+  }
+  .wrap { padding: 22px 24px 16px; }
+  .row { display: flex; align-items: center; }
+  .head { justify-content: space-between; margin-bottom: 14px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
+  .brand .logo {
+    width: 26px; height: 26px; border-radius: 7px; background: var(--amber);
+    color: #fff; font-weight: 700; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .gear {
+    border: none; background: none; color: var(--sub); font-size: 14px;
+    cursor: pointer; display: flex; align-items: center; gap: 5px;
+  }
+  .gear:hover { color: var(--text); }
+  .clock { font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+  .state { font-size: 30px; font-weight: 700; margin: 10px 0 4px; }
+  .state.working { color: var(--blue); }
+  .state.lunch { color: var(--amber); }
+  .state.offwork { color: var(--sub); }
+  .state.rest { color: var(--teal); }
+  .state-line { font-size: 14px; color: var(--sub); font-variant-numeric: tabular-nums; }
+  .sec-label { font-size: 13px; color: var(--sub); margin-top: 18px; }
+  .big-money {
+    font-size: 44px; font-weight: 700; color: var(--red);
+    font-variant-numeric: tabular-nums; letter-spacing: 0.5px; margin-top: 2px;
+  }
+  .speed { font-size: 14px; color: var(--sub); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .paused-tip { font-size: 13px; color: var(--amber); margin-top: 4px; display: none; }
+  .encourage { margin-top: 12px; font-size: 13px; line-height: 1.7; min-height: 44px; }
+  .encourage .owned { color: var(--text); }
+  .encourage .next { color: var(--sub); }
+  .btn-main {
+    margin-top: 16px; width: 100%; padding: 12px; border: none; border-radius: 10px;
+    background: var(--amber); color: var(--btn-text);
+    font-size: 16px; font-weight: 600; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-main:hover { filter: brightness(1.06); }
+  .progress-sec { margin-top: 18px; }
+  .progress-meta {
+    display: flex; justify-content: space-between;
+    font-size: 13px; color: var(--sub); margin-bottom: 7px; font-variant-numeric: tabular-nums;
+  }
+  .bar { height: 8px; border-radius: 99px; background: rgba(128,128,128,.22); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; background: var(--amber); transition: width .4s; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 16px 0 12px; }
+  .month .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .month .label { font-size: 13px; color: var(--sub); }
+  .month .val { font-size: 20px; font-weight: 700; color: var(--red); font-variant-numeric: tabular-nums; }
+  .month .note { font-size: 12px; color: var(--sub); opacity: .75; margin-top: 3px; }
+  .meta-row {
+    display: flex; justify-content: space-between;
+    font-size: 13px; color: var(--sub); margin-top: 10px; font-variant-numeric: tabular-nums;
+  }
+  .foot {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line);
+    font-size: 12px; color: var(--sub);
+  }
+  .foot a { color: var(--sub); cursor: pointer; text-decoration: none; }
+  .foot a:hover { color: var(--text); }
+
+  /* 设置弹窗 */
+  .modal-mask {
+    position: fixed; inset: 0; background: rgba(0,0,0,.35);
+    display: none; align-items: center; justify-content: center; z-index: 10;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    width: 400px; max-height: 92vh; overflow-y: auto;
+    background: var(--card); border-radius: 12px; padding: 20px 22px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  }
+  .modal h2 { font-size: 16px; margin-bottom: 10px; }
+  .field { display: flex; align-items: center; justify-content: space-between; margin: 10px 0; }
+  .field label { font-size: 14px; }
+  .field input[type=number], .field input[type=time] {
+    width: 110px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  .field input:focus { outline: 2px solid var(--amber); border-color: transparent; }
+  .switch { position: relative; width: 40px; height: 22px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0; border-radius: 99px; background: #c9ccd1;
+    transition: .2s; cursor: pointer;
+  }
+  .slider::before {
+    content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; top: 2px; left: 2px; transition: .2s;
+  }
+  .switch input:checked + .slider { background: var(--amber); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+  .goods-list { margin: 6px 0; }
+  .goods-row { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+  .goods-row input {
+    padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px;
+    background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit;
+  }
+  .goods-row .g-name { flex: 1; min-width: 0; }
+  .goods-row .g-price { width: 70px; text-align: right; }
+  .goods-row .g-del {
+    border: none; background: none; color: var(--sub); cursor: pointer; font-size: 15px;
+  }
+  .goods-row .g-del:hover { color: var(--red); }
+  .btn-ghost {
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: none; color: var(--text); font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .btn-ghost:hover { border-color: var(--amber); color: var(--amber); }
+  .modal-actions { margin-top: 14px; }
+  .btn-primary {
+    width: 100%; padding: 9px; border: none; border-radius: 9px;
+    background: var(--amber); color: #fff; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .hint { font-size: 12px; color: var(--sub); margin: 4px 0 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row head">
+    <div class="brand"><span class="logo">¥</span>上班鼓励器</div>
+    <button class="gear" id="btnSettings">⚙ 设置</button>
+  </div>
+
+  <div class="clock" id="clock">—</div>
+  <div class="state working" id="stateText">上班中</div>
+  <div class="state-line" id="stateLine">—</div>
+
+  <div class="sec-label">今日已赚</div>
+  <div class="big-money" id="earned">¥0.0000</div>
+  <div class="speed" id="speed">当前赚钱速度 ¥0.0000 / 秒</div>
+  <div class="paused-tip" id="pausedTip">⏸ 已暂停</div>
+
+  <div class="encourage">
+    <div class="owned" id="encOwned"></div>
+    <div class="next" id="encNext"></div>
+  </div>
+
+  <button class="btn-main" id="btnPause">暂停计时</button>
+
+  <div class="progress-sec">
+    <div class="progress-meta">
+      <span id="progressPct">今日工时进度 0%</span>
+      <span id="progressHours">已工作 0.00 / 0.00 小时</span>
+    </div>
+    <div class="bar"><div class="bar-fill" id="barFill" style="width:0%"></div></div>
+  </div>
+
+  <hr>
+
+  <div class="month">
+    <div class="top">
+      <span class="label">本月累计</span>
+      <span class="val" id="monthTotal">¥0.00</span>
+    </div>
+    <div class="note">已过的日子按满勤补算。本月只计已赚，不含亏损。</div>
+  </div>
+
+  <div class="meta-row">
+    <span id="hourly">时薪 ¥0.00</span>
+    <span id="fullDay">今日满勤可得 ¥0.00</span>
+  </div>
+
+  <div class="foot">
+    <span>把工资折算到秒，看着它一格格涨</span>
+    <a id="btnQuit">退出</a>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="modal-mask" id="settingsMask">
+  <div class="modal">
+    <h2>设置</h2>
+    <div class="hint">按到手月薪填更真实。每项改动即时生效。</div>
+    <div class="field"><label>月薪（元）</label><input type="number" id="fSalary" min="0" step="100"></div>
+    <div class="field"><label>每月计薪天数</label><input type="number" id="fPayDays" min="1" max="31" step="0.01"></div>
+    <div class="field"><label>上班时间</label><input type="time" id="fStart"></div>
+    <div class="field"><label>下班时间</label><input type="time" id="fEnd"></div>
+    <div class="field"><label>午休不计薪</label>
+      <label class="switch"><input type="checkbox" id="fLunchOn"><span class="slider"></span></label>
+    </div>
+    <div class="field" id="lunchFields">
+      <label>午休时间</label>
+      <span><input type="time" id="fLunchStart" style="width:90px"> — <input type="time" id="fLunchEnd" style="width:90px"></span>
+    </div>
+    <div style="margin-top:16px; font-size:14px; font-weight:600;">赚回清单（金额会换算成这些东西）</div>
+    <div class="goods-list" id="goodsList"></div>
+    <div class="row" style="justify-content:space-between; margin-top:8px;">
+      <button class="btn-ghost" id="btnAddGoods">＋ 添加</button>
+      <button class="btn-ghost" id="btnResetGoods">恢复默认清单</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btnCloseSettings">完成</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------- 默认配置（与 macOS 版一致） ----------
+const DEFAULT_GOODS = [
+  { name: "一杯奶茶", price: 16 },
+  { name: "一顿午饭", price: 28 },
+  { name: "一张电影票", price: 49 },
+  { name: "一件 T 恤", price: 99 },
+  { name: "一顿火锅", price: 198 },
+  { name: "一双跑鞋", price: 499 },
+  { name: "一副 AirPods", price: 1399 },
+  { name: "一部 iPhone", price: 6999 },
+  { name: "一台 MacBook Pro", price: 19999 },
+];
+const DEFAULTS = {
+  salary: 12000, payDays: 21.75,
+  start: "09:00", end: "18:00",
+  lunchOn: true, lunchStart: "12:00", lunchEnd: "13:00",
+  goods: DEFAULT_GOODS,
+};
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem("workcheer.settings");
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && Array.isArray(s.goods) && s.goods.length) return s;
+    }
+  } catch (e) {}
+  return JSON.parse(JSON.stringify(DEFAULTS));
+}
+let S = loadSettings();
+function saveSettings() { localStorage.setItem("workcheer.settings", JSON.stringify(S)); }
+
+// ---------- 暂停状态 ----------
+let pauseStart = null;   // 暂停起始时刻
+let pausedTotal = 0;     // 累计暂停秒数
+
+const $ = id => document.getElementById(id);
+const WEEK_CN = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
+function secondsFrom(hhmm, fallback) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || "");
+  if (!m) return fallback;
+  const h = +m[1], mi = +m[2];
+  if (h < 0 || h > 23 || mi < 0 || mi > 59) return fallback;
+  return h * 3600 + mi * 60;
+}
+function pad(n) { return String(n).padStart(2, "0"); }
+function money(v, d = 2) { return "¥" + v.toFixed(d); }
+function durText(t, withSec = true) {
+  const s = Math.max(0, Math.floor(t));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  if (withSec) return `${h} 小时 ${m} 分 ${sec} 秒`;
+  if (h > 0) return `${h} 小时 ${m} 分`;
+  return `${Math.max(1, m)} 分钟`;
+}
+function overlap(a1, a2, b1, b2) { return Math.max(0, Math.min(a2, b2) - Math.max(a1, b1)); }
+
+// ---------- 核心计算（与 macOS 版 Engine.swift 同口径） ----------
+function compute(now) {
+  const cfg = {
+    startSec: secondsFrom(S.start, 9 * 3600),
+    endSec: secondsFrom(S.end, 18 * 3600),
+    lunchOn: !!S.lunchOn,
+    lunchStartSec: secondsFrom(S.lunchStart, 12 * 3600),
+    lunchEndSec: secondsFrom(S.lunchEnd, 13 * 3600),
+    salary: +S.salary || 0,
+    payDays: +S.payDays || 21.75,
+  };
+  const paidSec = Math.max(60, (cfg.endSec - cfg.startSec) - (cfg.lunchOn ? Math.max(0, cfg.lunchEndSec - cfg.lunchStartSec) : 0));
+  const perHour = cfg.salary / (cfg.payDays * paidSec / 3600);
+  const perSecond = perHour / 3600;
+  const fullDayPay = cfg.salary / cfg.payDays;
+
+  const d = new Date(now);
+  const secOfDay = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+  const weekday = d.getDay();
+  const isWeekend = weekday === 0 || weekday === 6;
+
+  // 有效时刻：暂停时冻结
+  let effSec = secOfDay;
+  if (pauseStart) {
+    const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    effSec = Math.min(secOfDay, Math.floor((pauseStart - midnight) / 1000));
+  }
+  effSec = Math.max(0, effSec - pausedTotal);
+
+  let state;
+  if (isWeekend) state = "rest";
+  else if (secOfDay < cfg.startSec) state = "before";
+  else if (secOfDay >= cfg.endSec) state = "offwork";
+  else if (cfg.lunchOn && secOfDay >= cfg.lunchStartSec && secOfDay < cfg.lunchEndSec) state = "lunch";
+  else state = "working";
+
+  const workedAt = t => {
+    const capped = Math.min(Math.max(t, cfg.startSec), cfg.endSec);
+    const raw = capped - cfg.startSec;
+    const lunch = overlap(cfg.startSec, capped, cfg.lunchStartSec, cfg.lunchEndSec);
+    return Math.min(Math.max(0, raw - lunch), paidSec);
+  };
+  let worked = 0;
+  if (state === "offwork") worked = paidSec;
+  else if (state === "working" || state === "lunch") worked = workedAt(effSec);
+
+  const earned = worked * perSecond;
+
+  // 本月累计：已过工作日按满勤补算 + 今日实时
+  let day = new Date(d.getFullYear(), d.getMonth(), 1);
+  const today = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  let past = 0;
+  while (day < today) {
+    const wd = day.getDay();
+    if (wd !== 0 && wd !== 6) past++;
+    day.setDate(day.getDate() + 1);
+  }
+  const todayIsWeekday = weekday !== 0 && weekday !== 6;
+  const monthTotal = past * fullDayPay + (todayIsWeekday ? earned : 0);
+
+  return { state, earned, worked, paidSec, perSecond, perHour, fullDayPay, monthTotal,
+           toOff: (state === "working" || state === "lunch") ? Math.max(0, cfg.endSec - effSec) : 0,
+           toStart: state === "before" ? Math.max(0, cfg.startSec - effSec) : 0 };
+}
+
+function goodsSight(earned, perSecond) {
+  const owned = S.goods.filter(g => g.price <= earned).sort((a, b) => b.price - a.price)[0] || null;
+  const next = S.goods.filter(g => g.price > earned).sort((a, b) => a.price - b.price)[0] || null;
+  const eta = next ? (next.price - earned) / Math.max(perSecond, 1e-9) : null;
+  return { owned, next, eta };
+}
+
+// ---------- 渲染 ----------
+function render() {
+  const now = new Date();
+  // 跨天：暂停作废
+  if (pauseStart && pauseStart.getDate() !== now.getDate()) { pauseStart = null; pausedTotal = 0; }
+
+  const r = compute(now);
+  $("clock").textContent =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${WEEK_CN[now.getDay()]} ` +
+    `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+  const st = $("stateText"), sl = $("stateLine");
+  st.className = "state";
+  if (r.state === "working") {
+    st.classList.add("working"); st.textContent = "上班中";
+    sl.textContent = `距离下班还有 ${durText(r.toOff)}`;
+  } else if (r.state === "lunch") {
+    st.classList.add("lunch"); st.textContent = "午休中";
+    sl.textContent = "吃饭别想 KPI，金额暂停跳动，下午接着涨";
+  } else if (r.state === "offwork") {
+    st.classList.add("offwork"); st.textContent = "已下班";
+    sl.textContent = `今日满勤 ${money(r.fullDayPay)} 已入账，去玩吧`;
+  } else if (r.state === "before") {
+    st.classList.add("offwork"); st.textContent = "待上班";
+    sl.textContent = `距离上班还有 ${durText(r.toStart)}，钱已经在路上`;
+  } else {
+    st.classList.add("rest"); st.textContent = "休假日";
+    sl.textContent = "今天不打卡，好好休息就是给自己充电";
+  }
+
+  $("earned").textContent = money(r.earned, 4);
+  $("speed").textContent = `当前赚钱速度 ${money(r.perSecond, 4)} / 秒`;
+
+  const paused = pauseStart !== null;
+  $("pausedTip").style.display = paused ? "block" : "none";
+  if (paused) $("pausedTip").textContent = `⏸ 已暂停，时间冻结在 ${pad(pauseStart.getHours())}:${pad(pauseStart.getMinutes())}:${pad(pauseStart.getSeconds())}`;
+  $("btnPause").style.display = (r.state === "working" || r.state === "lunch") ? "block" : "none";
+  $("btnPause").textContent = paused ? "继续计时" : "暂停计时";
+
+  const sight = goodsSight(r.earned, r.perSecond);
+  $("encOwned").textContent = sight.owned ? `✅ 已经赚回「${sight.owned.name}」` : "";
+  if (sight.next && sight.eta != null) {
+    $("encNext").textContent = `再过 ${durText(sight.eta, false)}，「${sight.next.name}」就赚回来了`;
+  } else if (sight.owned && !sight.next) {
+    $("encNext").textContent = `清单上的东西今天全都赚回来了，还多 ${money(r.earned - sight.owned.price)}，收工底气十足`;
+  } else {
+    $("encNext").textContent = "";
+  }
+
+  const pct = Math.min(1, r.worked / r.paidSec);
+  $("progressPct").textContent = `今日工时进度 ${Math.round(pct * 100)}%`;
+  $("progressHours").textContent = `已工作 ${(r.worked / 3600).toFixed(2)} / ${(r.paidSec / 3600).toFixed(2)} 小时`;
+  $("barFill").style.width = (pct * 100).toFixed(1) + "%";
+
+  $("monthTotal").textContent = money(r.monthTotal);
+  $("hourly").textContent = `时薪 ${money(r.perHour)}`;
+  $("fullDay").textContent = `今日满勤可得 ${money(r.fullDayPay)}`;
+}
+setInterval(render, 500);
+render();
+
+// ---------- 交互 ----------
+$("btnPause").addEventListener("click", () => {
+  if (pauseStart) {
+    pausedTotal += (Date.now() - pauseStart.getTime()) / 1000;
+    pauseStart = null;
+  } else {
+    pauseStart = new Date();
+  }
+  render();
+});
+$("btnQuit").addEventListener("click", () => { try { Neutralino.app.exit(); } catch (e) { window.close(); } });
+
+// 设置弹窗
+function openSettings() {
+  $("fSalary").value = S.salary;
+  $("fPayDays").value = S.payDays;
+  $("fStart").value = S.start;
+  $("fEnd").value = S.end;
+  $("fLunchOn").checked = !!S.lunchOn;
+  $("fLunchStart").value = S.lunchStart;
+  $("fLunchEnd").value = S.lunchEnd;
+  $("lunchFields").style.visibility = S.lunchOn ? "visible" : "hidden";
+  renderGoodsEditor();
+  $("settingsMask").classList.add("show");
+}
+function closeSettings() { $("settingsMask").classList.remove("show"); }
+$("btnSettings").addEventListener("click", openSettings);
+$("btnCloseSettings").addEventListener("click", closeSettings);
+$("settingsMask").addEventListener("click", e => { if (e.target === e.currentTarget) closeSettings(); });
+
+$("fSalary").addEventListener("input", e => { S.salary = +e.target.value || 0; saveSettings(); render(); });
+$("fPayDays").addEventListener("input", e => { S.payDays = +e.target.value || 21.75; saveSettings(); render(); });
+$("fStart").addEventListener("input", e => { S.start = e.target.value || "09:00"; saveSettings(); render(); });
+$("fEnd").addEventListener("input", e => { S.end = e.target.value || "18:00"; saveSettings(); render(); });
+$("fLunchOn").addEventListener("change", e => {
+  S.lunchOn = e.target.checked;
+  $("lunchFields").style.visibility = S.lunchOn ? "visible" : "hidden";
+  saveSettings(); render();
+});
+$("fLunchStart").addEventListener("input", e => { S.lunchStart = e.target.value || "12:00"; saveSettings(); render(); });
+$("fLunchEnd").addEventListener("input", e => { S.lunchEnd = e.target.value || "13:00"; saveSettings(); render(); });
+
+function renderGoodsEditor() {
+  const box = $("goodsList");
+  box.innerHTML = "";
+  S.goods.forEach((g, i) => {
+    const row = document.createElement("div");
+    row.className = "goods-row";
+    const name = document.createElement("input");
+    name.className = "g-name"; name.placeholder = "名称"; name.value = g.name;
+    name.addEventListener("input", e => { g.name = e.target.value; saveSettings(); render(); });
+    const price = document.createElement("input");
+    price.className = "g-price"; price.placeholder = "价格"; price.type = "number"; price.value = g.price;
+    price.addEventListener("input", e => { g.price = +e.target.value || 0; saveSettings(); render(); });
+    const del = document.createElement("button");
+    del.className = "g-del"; del.textContent = "⊖";
+    del.addEventListener("click", () => { S.goods.splice(i, 1); saveSettings(); renderGoodsEditor(); render(); });
+    row.append(name, price, del);
+    box.appendChild(row);
+  });
+}
+$("btnAddGoods").addEventListener("click", () => { S.goods.push({ name: "新东西", price: 100 }); saveSettings(); renderGoodsEditor(); });
+$("btnResetGoods").addEventListener("click", () => {
+  S.goods = JSON.parse(JSON.stringify(DEFAULT_GOODS));
+  saveSettings(); renderGoodsEditor(); render();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+build/
+dist/
+node_modules/
+windows/.tmp/
+windows/dist/
+release/
+.DS_Store
+windows/workcheer-win/bin/
+windows/workcheer-win/dist/
