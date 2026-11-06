@@ -2,7 +2,7 @@ import SwiftUI
 import ServiceManagement
 
 struct SettingsView: View {
-    @AppStorage(Keys.salary) private var monthlySalary: Double = 12000
+    @AppStorage(Keys.salary) private var monthlySalary: Double = 10000
     @AppStorage(Keys.payDays) private var payDays: Double = 21.75
     @AppStorage(Keys.start) private var startTime = "09:00"
     @AppStorage(Keys.end) private var endTime = "18:00"

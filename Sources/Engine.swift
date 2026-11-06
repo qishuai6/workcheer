@@ -47,7 +47,7 @@ enum Keys {
 }
 
 struct WorkConfig {
-    var monthlySalary: Double = 12000
+    var monthlySalary: Double = 10000
     var payDays: Double = 21.75
     var startSeconds: Double = 9 * 3600
     var endSeconds: Double = 18 * 3600
