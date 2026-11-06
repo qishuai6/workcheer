@@ -163,7 +163,7 @@
   <div class="state working" id="stateText">上班中</div>
   <div class="state-line" id="stateLine">—</div>
 
-  <div class="sec-label">今日已赚</div>
+  <div class="sec-label" id="earnedLabel">今日已赚 · 奶茶</div>
   <div class="big-money" id="earned">¥0.0000</div>
   <div class="speed" id="speed">当前赚钱速度 ¥0.0000 / 秒</div>
   <div class="paused-tip" id="pausedTip">⏸ 已暂停</div>
@@ -190,7 +190,7 @@
       <span class="label">本月累计</span>
       <span class="val" id="monthTotal">¥0.00</span>
     </div>
-    <div class="note">已过的日子按满勤补算。本月只计已赚，不含亏损。</div>
+    <div class="note" id="monthNote">已过的日子按满勤补算。本月只计已赚，不含亏损。</div>
   </div>
 
   <div class="meta-row">
@@ -220,11 +220,13 @@
       <label>午休时间</label>
       <span><input type="time" id="fLunchStart" style="width:90px"> — <input type="time" id="fLunchEnd" style="width:90px"></span>
     </div>
-    <div style="margin-top:16px; font-size:14px; font-weight:600;">赚回清单（金额会换算成这些东西）</div>
-    <div class="goods-list" id="goodsList"></div>
-    <div class="row" style="justify-content:space-between; margin-top:8px;">
-      <button class="btn-ghost" id="btnAddGoods">＋ 添加</button>
-      <button class="btn-ghost" id="btnResetGoods">恢复默认清单</button>
+    <div style="margin-top:16px; font-size:14px; font-weight:600;">锚定物品（工资按它来算）</div>
+    <div class="hint">主界面大数字会显示「今天赚了多少<span id="hintUnit">杯</span><span id="hintName">奶茶</span>」。</div>
+    <div class="field"><label>物品名称</label><input type="text" id="fAnchorName" style="width:130px" maxlength="12"></div>
+    <div class="field"><label>计量单位</label><input type="text" id="fAnchorUnit" style="width:70px" maxlength="4"></div>
+    <div class="field"><label>单价（元）</label><input type="number" id="fAnchorPrice" min="0.01" step="0.5"></div>
+    <div class="row" style="justify-content:flex-end; margin-top:8px;">
+      <button class="btn-ghost" id="btnResetGoods">恢复默认（奶茶 · 16 元/杯）</button>
     </div>
     <div class="modal-actions">
       <button class="btn-primary" id="btnCloseSettings">完成</button>
@@ -235,22 +237,11 @@
 <script>
 "use strict";
 // ---------- 默认配置（与 macOS 版一致） ----------
-const DEFAULT_GOODS = [
-  { name: "一杯奶茶", price: 16 },
-  { name: "一顿午饭", price: 28 },
-  { name: "一张电影票", price: 49 },
-  { name: "一件 T 恤", price: 99 },
-  { name: "一顿火锅", price: 198 },
-  { name: "一双跑鞋", price: 499 },
-  { name: "一副 AirPods", price: 1399 },
-  { name: "一部 iPhone", price: 6999 },
-  { name: "一台 MacBook Pro", price: 19999 },
-];
 const DEFAULTS = {
   salary: 12000, payDays: 21.75,
   start: "09:00", end: "18:00",
   lunchOn: true, lunchStart: "12:00", lunchEnd: "13:00",
-  goods: DEFAULT_GOODS,
+  anchorName: "奶茶", anchorUnit: "杯", anchorPrice: 16,
 };
 
 function loadSettings() {
@@ -258,7 +249,7 @@ function loadSettings() {
     const raw = localStorage.getItem("workcheer.settings");
     if (raw) {
       const s = JSON.parse(raw);
-      if (s && Array.isArray(s.goods) && s.goods.length) return s;
+      if (s && s.anchorPrice > 0) return s;   // 旧版 goods 数据直接忽略
     }
   } catch (e) {}
   return JSON.parse(JSON.stringify(DEFAULTS));
@@ -356,11 +347,12 @@ function compute(now) {
            toStart: state === "before" ? Math.max(0, cfg.startSec - effSec) : 0 };
 }
 
-function goodsSight(earned, perSecond) {
-  const owned = S.goods.filter(g => g.price <= earned).sort((a, b) => b.price - a.price)[0] || null;
-  const next = S.goods.filter(g => g.price > earned).sort((a, b) => a.price - b.price)[0] || null;
-  const eta = next ? (next.price - earned) / Math.max(perSecond, 1e-9) : null;
-  return { owned, next, eta };
+function anchorSight(earned, perSecond, fullDayPay) {
+  const price = Math.max(0.01, +S.anchorPrice || 16);
+  const count = earned / price;
+  const wholeCount = Math.floor(count);
+  const etaToNextWhole = ((wholeCount + 1) * price - earned) / Math.max(perSecond, 1e-9);
+  return { count, wholeCount, etaToNextWhole, fullDayCount: fullDayPay / price };
 }
 
 // ---------- 渲染 ----------
@@ -393,8 +385,11 @@ function render() {
     sl.textContent = "今天不打卡，好好休息就是给自己充电";
   }
 
-  $("earned").textContent = money(r.earned, 4);
-  $("speed").textContent = `当前赚钱速度 ${money(r.perSecond, 4)} / 秒`;
+  const anchor = { name: S.anchorName || "奶茶", unit: S.anchorUnit || "杯" };
+  const sight = anchorSight(r.earned, r.perSecond, r.fullDayPay);
+  $("earnedLabel").textContent = `今日已赚 · ${anchor.name}`;
+  $("earned").textContent = `${sight.count.toFixed(2)} ${anchor.unit}`;
+  $("speed").textContent = `折合 ${money(r.earned)} · 每秒 ${(r.perSecond / Math.max(0.01, +S.anchorPrice || 16)).toFixed(4)} ${anchor.unit}`;
 
   const paused = pauseStart !== null;
   $("pausedTip").style.display = paused ? "block" : "none";
@@ -402,13 +397,20 @@ function render() {
   $("btnPause").style.display = (r.state === "working" || r.state === "lunch") ? "block" : "none";
   $("btnPause").textContent = paused ? "继续计时" : "暂停计时";
 
-  const sight = goodsSight(r.earned, r.perSecond);
-  $("encOwned").textContent = sight.owned ? `✅ 已经赚回「${sight.owned.name}」` : "";
-  if (sight.next && sight.eta != null) {
-    $("encNext").textContent = `再过 ${durText(sight.eta, false)}，「${sight.next.name}」就赚回来了`;
-  } else if (sight.owned && !sight.next) {
-    $("encNext").textContent = `清单上的东西今天全都赚回来了，还多 ${money(r.earned - sight.owned.price)}，收工底气十足`;
+  if (r.state === "working") {
+    $("encOwned").textContent = `✅ 再过 ${durText(sight.etaToNextWhole, false)}凑满 ${sight.wholeCount + 1} ${anchor.unit}，可以整单拎走`;
+    $("encNext").textContent = `照这个速度，下班时正好 ${sight.fullDayCount.toFixed(1)} ${anchor.unit}`;
+  } else if (r.state === "lunch") {
+    $("encOwned").textContent = "";
+    $("encNext").textContent = `下午接着涨，满勤是 ${sight.fullDayCount.toFixed(1)} ${anchor.unit}`;
+  } else if (r.state === "offwork") {
+    $("encOwned").textContent = `今天 ${sight.count.toFixed(2)} ${anchor.unit}，一颗不多一颗不少`;
+    $("encNext").textContent = "";
+  } else if (r.state === "before") {
+    $("encOwned").textContent = `满勤可得 ${sight.fullDayCount.toFixed(1)} ${anchor.unit}`;
+    $("encNext").textContent = "";
   } else {
+    $("encOwned").textContent = "";
     $("encNext").textContent = "";
   }
 
@@ -417,9 +419,10 @@ function render() {
   $("progressHours").textContent = `已工作 ${(r.worked / 3600).toFixed(2)} / ${(r.paidSec / 3600).toFixed(2)} 小时`;
   $("barFill").style.width = (pct * 100).toFixed(1) + "%";
 
-  $("monthTotal").textContent = money(r.monthTotal);
+  $("monthTotal").textContent = `${(r.monthTotal / Math.max(0.01, +S.anchorPrice || 16)).toFixed(1)} ${anchor.unit}`;
+  $("monthNote").textContent = `已过的日子按满勤补算，折合 ${money(r.monthTotal)}。本月只计已赚，不含亏损。`;
   $("hourly").textContent = `时薪 ${money(r.perHour)}`;
-  $("fullDay").textContent = `今日满勤可得 ${money(r.fullDayPay)}`;
+  $("fullDay").textContent = `今日满勤可得 ${sight.fullDayCount.toFixed(1)} ${anchor.unit}`;
 }
 setInterval(render, 500);
 render();
@@ -445,8 +448,10 @@ function openSettings() {
   $("fLunchOn").checked = !!S.lunchOn;
   $("fLunchStart").value = S.lunchStart;
   $("fLunchEnd").value = S.lunchEnd;
+  $("fAnchorName").value = S.anchorName;
+  $("fAnchorUnit").value = S.anchorUnit;
+  $("fAnchorPrice").value = S.anchorPrice;
   $("lunchFields").style.visibility = S.lunchOn ? "visible" : "hidden";
-  renderGoodsEditor();
   $("settingsMask").classList.add("show");
 }
 function closeSettings() { $("settingsMask").classList.remove("show"); }
@@ -466,29 +471,17 @@ $("fLunchOn").addEventListener("change", e => {
 $("fLunchStart").addEventListener("input", e => { S.lunchStart = e.target.value || "12:00"; saveSettings(); render(); });
 $("fLunchEnd").addEventListener("input", e => { S.lunchEnd = e.target.value || "13:00"; saveSettings(); render(); });
 
-function renderGoodsEditor() {
-  const box = $("goodsList");
-  box.innerHTML = "";
-  S.goods.forEach((g, i) => {
-    const row = document.createElement("div");
-    row.className = "goods-row";
-    const name = document.createElement("input");
-    name.className = "g-name"; name.placeholder = "名称"; name.value = g.name;
-    name.addEventListener("input", e => { g.name = e.target.value; saveSettings(); render(); });
-    const price = document.createElement("input");
-    price.className = "g-price"; price.placeholder = "价格"; price.type = "number"; price.value = g.price;
-    price.addEventListener("input", e => { g.price = +e.target.value || 0; saveSettings(); render(); });
-    const del = document.createElement("button");
-    del.className = "g-del"; del.textContent = "⊖";
-    del.addEventListener("click", () => { S.goods.splice(i, 1); saveSettings(); renderGoodsEditor(); render(); });
-    row.append(name, price, del);
-    box.appendChild(row);
-  });
-}
-$("btnAddGoods").addEventListener("click", () => { S.goods.push({ name: "新东西", price: 100 }); saveSettings(); renderGoodsEditor(); });
+$("fAnchorName").addEventListener("input", e => { S.anchorName = e.target.value.trim() || "奶茶"; $("hintName").textContent = S.anchorName; saveSettings(); render(); });
+$("fAnchorUnit").addEventListener("input", e => { S.anchorUnit = e.target.value.trim() || "个"; $("hintUnit").textContent = S.anchorUnit; saveSettings(); render(); });
+$("fAnchorPrice").addEventListener("input", e => { S.anchorPrice = +e.target.value || 16; saveSettings(); render(); });
 $("btnResetGoods").addEventListener("click", () => {
-  S.goods = JSON.parse(JSON.stringify(DEFAULT_GOODS));
-  saveSettings(); renderGoodsEditor(); render();
+  S.anchorName = DEFAULTS.anchorName;
+  S.anchorUnit = DEFAULTS.anchorUnit;
+  S.anchorPrice = DEFAULTS.anchorPrice;
+  $("fAnchorName").value = S.anchorName;
+  $("fAnchorUnit").value = S.anchorUnit;
+  $("fAnchorPrice").value = S.anchorPrice;
+  saveSettings(); render();
 });
 </script>
 </body>

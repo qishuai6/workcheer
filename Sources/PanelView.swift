@@ -15,8 +15,10 @@ struct PanelView: View {
 
     var body: some View {
         let cfg = loadConfig()
+        let anchor = loadAnchor()
         let snap = snapshot(now: ticker.frozenNow, isPaused: ticker.paused, cfg: cfg)
-        let sight = goodsSight(earned: snap.earned, perSecond: cfg.perSecond, goods: loadGoods())
+        let sight = anchorSight(earned: snap.earned, perSecond: cfg.perSecond,
+                                fullDayPay: cfg.fullDayPay, anchor: anchor)
 
         VStack(alignment: .leading, spacing: 14) {
             header
@@ -27,13 +29,13 @@ struct PanelView: View {
             stateHeadline(snap, cfg: cfg)
 
             VStack(alignment: .leading, spacing: 5) {
-                Text("今日已赚")
+                Text("今日已赚 · \(anchor.name)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                Text(money(snap.earned, digits: 4))
+                Text(String(format: "%.2f", sight.count) + " " + anchor.unit)
                     .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(earningRed)
-                Text("当前赚钱速度 \(money(cfg.perSecond, digits: 4)) / 秒")
+                Text("折合 \(money(snap.earned)) · 每秒 \(String(format: "%.4f", cfg.perSecond / max(0.01, anchor.price))) \(anchor.unit)")
                     .font(.callout.monospacedDigit())
                     .foregroundStyle(.secondary)
                 if ticker.paused {
@@ -44,7 +46,7 @@ struct PanelView: View {
                 }
             }
 
-            encourageLines(snap, sight: sight)
+            encourageLines(snap, sight: sight, anchor: anchor, cfg: cfg)
 
             if snap.state == .working || snap.state == .lunch {
                 Button {
@@ -70,11 +72,11 @@ struct PanelView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(money(snap.monthly))
+                    Text(String(format: "%.1f", anchor.count(of: snap.monthly)) + " " + anchor.unit)
                         .font(.system(size: 18, weight: .semibold, design: .rounded).monospacedDigit())
                         .foregroundStyle(earningRed)
                 }
-                Text("已过的日子按满勤补算。本月只计已赚，不含亏损。")
+                Text("已过的日子按满勤补算，折合 \(money(snap.monthly))。本月只计已赚，不含亏损。")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -82,7 +84,7 @@ struct PanelView: View {
             HStack {
                 Text("时薪 \(money(cfg.hourly))")
                 Spacer()
-                Text("今日满勤可得 \(money(cfg.fullDayPay))")
+                Text("今日满勤可得 \(String(format: "%.1f", sight.fullDayCount)) \(anchor.unit)")
             }
             .font(.footnote.monospacedDigit())
             .foregroundStyle(.secondary)
@@ -139,7 +141,7 @@ struct PanelView: View {
                 Text("午休中")
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(amber)
-                Text("吃饭别想 KPI，金额暂停跳动，下午接着涨")
+                Text("吃饭别想 KPI，数量暂停跳动，下午接着涨")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -148,7 +150,7 @@ struct PanelView: View {
                 Text("已下班")
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(.secondary)
-                Text("今日满勤 \(money(cfg.fullDayPay)) 已入账，去玩吧")
+                Text("今日满勤已入账，去玩吧")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -174,29 +176,32 @@ struct PanelView: View {
     }
 
     @ViewBuilder
-    private func encourageLines(_ snap: Snapshot, sight: GoodsSight) -> some View {
-        if snap.state != .offDay && snap.state != .beforeWork {
+    private func encourageLines(_ snap: Snapshot, sight: AnchorSight, anchor: Anchor, cfg: WorkConfig) -> some View {
+        if snap.state == .working {
             VStack(alignment: .leading, spacing: 5) {
-                if let owned = sight.owned {
-                    Label {
-                        Text("已经赚回「\(owned.name)」")
-                    } icon: {
-                        Image(systemName: "checkmark.seal.fill")
-                            .foregroundStyle(amber)
-                    }
+                Label {
+                    Text("再过 \(durText(sight.etaToNextWhole, withSeconds: false))凑满 \(sight.wholeCount + 1) \(anchor.unit)，可以整单拎走")
+                } icon: {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(amber)
+                }
+                .font(.footnote)
+                Text("照这个速度，下班时正好 \(String(format: "%.1f", sight.fullDayCount)) \(anchor.unit)")
                     .font(.footnote)
-                    .foregroundStyle(.primary)
-                }
-                if let next = sight.next, let eta = sight.etaSeconds {
-                    Text("再过 \(durText(eta, withSeconds: false))，「\(next.name)」就赚回来了")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } else if sight.next == nil, sight.owned != nil {
-                    Text("清单上的东西今天全都赚回来了，还多 \(money(sight.surplus))，收工底气十足")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+                    .foregroundStyle(.secondary)
             }
+        } else if snap.state == .lunch {
+            Text("下午接着涨，满勤是 \(String(format: "%.1f", sight.fullDayCount)) \(anchor.unit)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else if snap.state == .afterWork {
+            Text("今天 \(String(format: "%.2f", sight.count)) \(anchor.unit)，一颗不多一颗不少")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else if snap.state == .beforeWork {
+            Text("满勤可得 \(String(format: "%.1f", sight.fullDayCount)) \(anchor.unit)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 

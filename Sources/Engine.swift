@@ -1,38 +1,34 @@
 import Foundation
 
-// MARK: - 商品：把赚到的钱翻译成生活里的东西
+// MARK: - 锚定物品：工资按它来算，主视觉显示「赚了多少个」
 
-struct GoodsItem: Identifiable, Codable, Equatable {
-    var id: UUID = UUID()
-    var name: String
-    var price: Double
+struct Anchor {
+    let name: String   // 奶茶
+    let unit: String   // 杯
+    let price: Double  // 单价 ¥16
 }
 
-let defaultGoods: [GoodsItem] = [
-    GoodsItem(name: "一杯奶茶", price: 16),
-    GoodsItem(name: "一顿午饭", price: 28),
-    GoodsItem(name: "一张电影票", price: 49),
-    GoodsItem(name: "一件 T 恤", price: 99),
-    GoodsItem(name: "一顿火锅", price: 198),
-    GoodsItem(name: "一双跑鞋", price: 499),
-    GoodsItem(name: "一副 AirPods", price: 1399),
-    GoodsItem(name: "一部 iPhone", price: 6999),
-    GoodsItem(name: "一台 MacBook Pro", price: 19999),
-]
+let defaultAnchor = Anchor(name: "奶茶", unit: "杯", price: 16)
 
-func loadGoods() -> [GoodsItem] {
-    guard let raw = UserDefaults.standard.string(forKey: Keys.goods),
-          let data = raw.data(using: .utf8),
-          let goods = try? JSONDecoder().decode([GoodsItem].self, from: data),
-          !goods.isEmpty else { return defaultGoods }
-    return goods
+func loadAnchor() -> Anchor {
+    let d = UserDefaults.standard
+    return Anchor(
+        name: d.string(forKey: Keys.anchorName) ?? defaultAnchor.name,
+        unit: d.string(forKey: Keys.anchorUnit) ?? defaultAnchor.unit,
+        price: d.object(forKey: Keys.anchorPrice) as? Double ?? defaultAnchor.price
+    )
 }
 
-func saveGoods(_ goods: [GoodsItem]) {
-    if let data = try? JSONEncoder().encode(goods),
-       let raw = String(data: data, encoding: .utf8) {
-        UserDefaults.standard.set(raw, forKey: Keys.goods)
-    }
+func saveAnchor(_ a: Anchor) {
+    let d = UserDefaults.standard
+    d.set(a.name, forKey: Keys.anchorName)
+    d.set(a.unit, forKey: Keys.anchorUnit)
+    d.set(a.price, forKey: Keys.anchorPrice)
+}
+
+extension Anchor {
+    /// 金额换算成物品数量
+    func count(of money: Double) -> Double { money / max(0.01, price) }
 }
 
 // MARK: - 配置
@@ -45,7 +41,9 @@ enum Keys {
     static let lunchOn = "lunchDeductOn"
     static let lunchStart = "lunchStartTime"
     static let lunchEnd = "lunchEndTime"
-    static let goods = "goodsListJSON"
+    static let anchorName = "anchorName"
+    static let anchorUnit = "anchorUnit"
+    static let anchorPrice = "anchorPrice"
 }
 
 struct WorkConfig {
@@ -185,21 +183,26 @@ func snapshot(now: Date, isPaused: Bool, cfg: WorkConfig, cal: Calendar = .curre
     )
 }
 
-// MARK: - 商品换算
+// MARK: - 物品数量换算
 
-struct GoodsSight {
-    let owned: GoodsItem?            // 已经赚回的最贵商品
-    let next: GoodsItem?             // 下一个目标
-    let etaSeconds: TimeInterval?    // 距离赚回下一个目标
-    let surplus: Double              // 超出已赚回商品的部分
+struct AnchorSight {
+    let count: Double            // 当前可买数量（小数）
+    let wholeCount: Int          // 已凑满的整数数量
+    let etaToNextWhole: TimeInterval  // 距离凑满下一个整数
+    let fullDayCount: Double     // 今日满勤可得数量
 }
 
-func goodsSight(earned: Double, perSecond: Double, goods: [GoodsItem]) -> GoodsSight {
-    let owned = goods.filter { $0.price <= earned }.max { $0.price < $1.price }
-    let next = goods.filter { $0.price > earned }.min { $0.price < $1.price }
-    let eta = next.map { ($0.price - earned) / max(perSecond, 0.000001) }
-    let surplus = owned.map { earned - $0.price } ?? 0
-    return GoodsSight(owned: owned, next: next, etaSeconds: eta, surplus: surplus)
+func anchorSight(earned: Double, perSecond: Double, fullDayPay: Double, anchor: Anchor) -> AnchorSight {
+    let c = anchor.count(of: earned)
+    let whole = Int(c.rounded(.down))
+    let nextWholePrice = Double(whole + 1) * anchor.price
+    let eta = (nextWholePrice - earned) / max(perSecond, 0.000001)
+    return AnchorSight(
+        count: c,
+        wholeCount: whole,
+        etaToNextWhole: eta,
+        fullDayCount: anchor.count(of: fullDayPay)
+    )
 }
 
 // MARK: - 格式化

@@ -9,8 +9,10 @@ struct SettingsView: View {
     @AppStorage(Keys.lunchOn) private var lunchOn = true
     @AppStorage(Keys.lunchStart) private var lunchStart = "12:00"
     @AppStorage(Keys.lunchEnd) private var lunchEnd = "13:00"
+    @AppStorage(Keys.anchorName) private var anchorName = defaultAnchor.name
+    @AppStorage(Keys.anchorUnit) private var anchorUnit = defaultAnchor.unit
+    @AppStorage(Keys.anchorPrice) private var anchorPrice: Double = defaultAnchor.price
 
-    @State private var goods: [GoodsItem] = loadGoods()
     @State private var cfg = loadConfig()
 
     var body: some View {
@@ -29,6 +31,34 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
             }
 
+            Section("锚定物品（工资按它来算）") {
+                HStack {
+                    TextField("名称", text: $anchorName)
+                        .textFieldStyle(.plain)
+                    TextField("单位", text: $anchorUnit)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.center)
+                        .frame(width: 70)
+                    TextField("", value: $anchorPrice, format: dblFmt)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 70)
+                    Text("元/" + (anchorUnit.isEmpty ? "个" : anchorUnit))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("主界面会显示「今天赚了多少\(anchorUnit.isEmpty ? "个" : anchorUnit)\(anchorName)」。比如一杯奶茶 16 元，下班时数字就是 34.5 杯奶茶。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("恢复默认（\(defaultAnchor.name) · \(defaultAnchor.price) 元/\(defaultAnchor.unit)）") {
+                    anchorName = defaultAnchor.name
+                    anchorUnit = defaultAnchor.unit
+                    anchorPrice = defaultAnchor.price
+                }
+                .buttonStyle(.plain)
+                .font(.callout)
+            }
+
             Section("作息") {
                 DatePicker("上班时间", selection: binding($startTime, fallback: "09:00"),
                            displayedComponents: .hourAndMinute)
@@ -41,42 +71,6 @@ struct SettingsView: View {
                     DatePicker("午休结束", selection: binding($lunchEnd, fallback: "13:00"),
                                displayedComponents: .hourAndMinute)
                 }
-            }
-
-            Section {
-                ForEach($goods) { $item in
-                    HStack {
-                        TextField("", text: $item.name)
-                            .textFieldStyle(.plain)
-                        TextField("", value: $item.price, format: dblFmt)
-                            .textFieldStyle(.plain)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                        Text("元").font(.caption).foregroundStyle(.secondary)
-                        Button {
-                            goods.removeAll { $0.id == item.id }
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .onMove { goods.move(fromOffsets: $0, toOffset: $1) }
-
-                HStack {
-                    Button {
-                        goods.append(GoodsItem(name: "新东西", price: 100))
-                    } label: {
-                        Label("添加", systemImage: "plus.circle.fill")
-                    }
-                    .buttonStyle(.plain)
-                    Spacer()
-                    Button("恢复默认清单") { goods = defaultGoods }
-                        .buttonStyle(.plain)
-                }
-            } header: {
-                Text("赚回清单（金额会换算成这些东西）")
             }
 
             Section("其他") {
@@ -93,7 +87,6 @@ struct SettingsView: View {
         .onChange(of: lunchOn) { _, _ in cfg = loadConfig() }
         .onChange(of: lunchStart) { _, _ in cfg = loadConfig() }
         .onChange(of: lunchEnd) { _, _ in cfg = loadConfig() }
-        .onChange(of: goods) { _, items in saveGoods(items) }
     }
 
     // "HH:mm" 字符串 <-> DatePicker 日期

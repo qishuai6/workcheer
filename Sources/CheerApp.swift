@@ -108,8 +108,9 @@ struct CheerApp: App {
     private var menuTitle: String {
         _ = ticker.now // 依赖秒针触发重算
         let cfg = loadConfig()
+        let anchor = loadAnchor()
         let snap = snapshot(now: ticker.frozenNow, isPaused: ticker.paused, cfg: cfg)
         if snap.state == .offDay { return "休假" }
-        return money(snap.earned)
+        return String(format: "%.1f", anchor.count(of: snap.earned)) + " " + anchor.unit
     }
 }

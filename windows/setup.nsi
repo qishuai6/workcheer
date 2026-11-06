@@ -4,10 +4,10 @@ Unicode true
 !define APPNAME "上班鼓励器"
 !define COMPANY "qishuai6"
 !define EXE "上班鼓励器.exe"
-!define VERSION "1.0.0"
+!define VERSION "1.1.0"
 
 Name "${APPNAME} ${VERSION}"
-OutFile "../release/WorkCheer-Windows-v1.0-Setup.exe"
+OutFile "../release/WorkCheer-Windows-v1.1-Setup.exe"
 InstallDir "$LOCALAPPDATA\WorkCheer"
 InstallDirRegKey HKCU "Software\${APPNAME}" "InstallDir"
 RequestExecutionLevel user
