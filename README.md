@@ -10,7 +10,7 @@
 
 | 平台 | 文件 | 说明 |
 |---|---|---|
-| macOS | `WorkCheer-macOS-v1.1.zip` | 解压 → 把「上班鼓励器.app」拖进「应用程序」→ 打开 |
+| macOS | `WorkCheer-macOS-v1.2.zip` | 需 macOS 13.0+（Ventura 及以上，Apple Silicon / Intel 通用）。解压 → 拖进「应用程序」→ 打开 |
 | Windows | `WorkCheer-Windows-v1.1-Setup.exe` | 双击安装，装完自动运行，带卸载器 |
 | Windows | `WorkCheer-Windows-v1.1-portable.zip` | 免安装版：解压后双击「上班鼓励器.exe」 |
 
@@ -83,6 +83,7 @@ cd .. && makensis setup.nsi    # 产物 ../release/WorkCheer-Windows-v1.1-Setup.
 
 ## 更新日志
 
+- 2026-11-06 v1.2：**兼容性修复（仅 macOS）**——清理 macOS 14+ API（新式 `onChange`），最低支持版本落到实处；构建改为 **Apple Silicon + Intel 通用二进制**，Intel 老机型也能装；系统要求：macOS 13.0（Ventura）及以上。Windows 版无改动。
 - 2026-11-06 v1.1：**逻辑重做——锚定物品**（默认月薪 ¥10,000）。自定义一件物品（名称/单位/单价），工资按它换算：主数字从金额改成「今天赚了多少杯奶茶」，新增凑整倒计时（再过 X 分钟凑满 N 杯）、下班预期数量，本月累计与满勤同步改为物品数量口径，金额降级为折合小字。
 - 2026-11-04 v1.0：首发。实时赚钱（每秒跳动）、下班倒计时、商品换算鼓励语、暂停计时、工时进度、本月累计按满勤补算、自定义赚回清单、午休不计薪；macOS 版含菜单栏常驻与开机自启，Windows 版含 NSIS 安装器与免安装包。
 

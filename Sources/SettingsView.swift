@@ -80,13 +80,13 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 460, height: 560)
         .onAppear { cfg = loadConfig() }
-        .onChange(of: monthlySalary) { _, _ in cfg = loadConfig() }
-        .onChange(of: payDays) { _, _ in cfg = loadConfig() }
-        .onChange(of: startTime) { _, _ in cfg = loadConfig() }
-        .onChange(of: endTime) { _, _ in cfg = loadConfig() }
-        .onChange(of: lunchOn) { _, _ in cfg = loadConfig() }
-        .onChange(of: lunchStart) { _, _ in cfg = loadConfig() }
-        .onChange(of: lunchEnd) { _, _ in cfg = loadConfig() }
+        .onChange(of: monthlySalary) { _ in cfg = loadConfig() }
+        .onChange(of: payDays) { _ in cfg = loadConfig() }
+        .onChange(of: startTime) { _ in cfg = loadConfig() }
+        .onChange(of: endTime) { _ in cfg = loadConfig() }
+        .onChange(of: lunchOn) { _ in cfg = loadConfig() }
+        .onChange(of: lunchStart) { _ in cfg = loadConfig() }
+        .onChange(of: lunchEnd) { _ in cfg = loadConfig() }
     }
 
     // "HH:mm" 字符串 <-> DatePicker 日期
